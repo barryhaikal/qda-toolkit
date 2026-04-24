@@ -385,6 +385,12 @@ class Models:
         -------
         None
         """
+        if isinstance(x, pd.DataFrame):
+            if x.shape[1] == 1:
+                x = x.iloc[:, 0]
+            else:
+                raise TypeError("please pass a pd.Series instead or use one column")
+
         p=order[0]
         d=order[1]
         q=order[2]
@@ -651,6 +657,14 @@ class Assumptions:
                 UserWarning
             )
             data = pd.Series(data)
+        
+        # check if passed data is a DataFrame, oen columned df or not
+        elif isinstance(data, pd.DataFrame):
+            if data.shape[1] == 1:
+                data = data.iloc[:, 0]
+            else:
+                raise TypeError("please pass a pd.Series instead or use one column")
+            
         self.data = data.dropna()
 
     def normality(self, qqplot=True, test='anderson-darling'):
