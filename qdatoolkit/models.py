@@ -641,15 +641,24 @@ class Assumptions:
 
     Parameters
     ----------
-    data : DataFrame
+    data : pd.Series, pd.DataFrame with one column, or np.array for normality() and independence, multivariate pd.DataFrame for all()
         The data to test for assumptions.
 
     Returns
     -------
     None
+
+    Raises
+    ------
+    TypeError : When incompatible methods are applied to instances with certain data types
     """
 
     def __init__(self, data):
+        """Instantation/initialize an instance
+
+        Handles univariate data for the class methods normality() and independence
+        Handles multivariate data for the class method all() which tests normality and independence of a multivariate data type (e.g. pd.DataFrame)
+        """
         if isinstance(data, np.ndarray):
             warnings.warn(
                 "A numpy array was passed to the Assumptions class and converted to Pandas Series.\n"
@@ -661,10 +670,15 @@ class Assumptions:
         # check if passed data is a DataFrame, oen columned df or not
         elif isinstance(data, pd.DataFrame):
             if data.shape[1] == 1:
-                data = data.iloc[:, 0]
+                data = data.iloc[:, 0] #converts it to a one column series
             else:
-                raise TypeError("please pass a pd.Series instead or use one column")
-            
+                # handles input now for multivariate data for Assumptions.all() method
+                data = data
+        
+        # if neither data type is inputted (pd.Series, pd.DataFrame, or np.array, raises TypeError for later class methods)
+        else:
+            raise TypeError("Data type of input not supported")
+
         self.data = data.dropna()
 
     def normality(self, qqplot=True, test='anderson-darling'):
@@ -683,31 +697,43 @@ class Assumptions:
             Test statistic.
         p_value : float
             P-value of the test.
+
+        Raises
+        ------
+        TypeError: if the data inputted is not univariate (single rows, like pd.Series or np.array like objects)
         """
 
-        if qqplot:
-            stats.probplot(self.data, dist="norm", plot=plt)
-            _show_plot()
+        # handling first
+        data = self.data
 
-        if test == 'shapiro-wilk':
-            stat, p_value = stats.shapiro(self.data)
-        elif test == 'anderson-darling':
-            result = stats.anderson(self.data, dist='norm')
-            stat = result.statistic
-            if stat >= 0.6:
-                p_value = np.exp(1.2937 - 5.709 * stat + 0.0186 * (stat ** 2))
-            elif stat >= 0.34:
-                p_value = np.exp(0.9177 - 4.279 * stat - 1.38 * (stat ** 2))
-            elif stat >= 0.2:
-                p_value = 1 - np.exp(-8.318 + 42.796 * stat - 59.938 * (stat ** 2))
+        # since allowed  inputs are pd.Series or converted to Series, check instance of data
+        if isinstance(data, pd.Series):
+            if qqplot:
+                stats.probplot(data, dist="norm", plot=plt)
+                _show_plot()
+
+            if test == 'shapiro-wilk':
+                stat, p_value = stats.shapiro(data)
+            elif test == 'anderson-darling':
+                result = stats.anderson(data, dist='norm')
+                stat = result.statistic
+                if stat >= 0.6:
+                    p_value = np.exp(1.2937 - 5.709 * stat + 0.0186 * (stat ** 2))
+                elif stat >= 0.34:
+                    p_value = np.exp(0.9177 - 4.279 * stat - 1.38 * (stat ** 2))
+                elif stat >= 0.2:
+                    p_value = 1 - np.exp(-8.318 + 42.796 * stat - 59.938 * (stat ** 2))
+                else:
+                    p_value = 1 - np.exp(-13.436 + 101.14 * stat - 223.73 * (stat ** 2))
             else:
-                p_value = 1 - np.exp(-13.436 + 101.14 * stat - 223.73 * (stat ** 2))
-        else:
-            raise ValueError("Invalid test type. Choose 'shapiro-wilk' or 'anderson-darling'.")
+                raise ValueError("Invalid test type. Choose 'shapiro-wilk' or 'anderson-darling'.")
 
-        print(f'{test.capitalize()} test statistic = {stat:.3f}')
-        print(f'{test.capitalize()} test p-value = {p_value:.3f}')
-        return stat, p_value
+            print(f'{test.capitalize()} test statistic = {stat:.3f}')
+            print(f'{test.capitalize()} test p-value = {p_value:.3f}')
+            return stat, p_value
+
+        else:
+            raise TypeError("Multivariate inputs are not supported")
 
     def independence(self, plotit=True, ac_test='runs', lag=None, nlags=None):
         """Test the independence of the data.
@@ -733,51 +759,63 @@ class Assumptions:
         p_value : float
             P-value for selected ac_test test.
 
+        Raises
+        ------
+        TypeError: if the data inputted is not univariate (single rows, like pd.Series or np.array like objects)
+
         """
 
-        stat, p_value = None, None
+        # handling first 
+        data = self.data
 
-        if nlags is None:
-            nlags = min(len(self.data) // 3, 200)
-        else:
-            # check if the number of lags is less than the length of the data
-            if nlags > len(self.data):
-                raise ValueError("The number of lags must be less than the length of the data.")
-        
-        acf_values, stat_lbq, _ = acf(self.data, nlags = nlags, qstat=True, fft = False)
+        # since allowed  inputs are pd.Series or converted to Series, check instance of data
+        if isinstance(data, pd.Series):
+            stat, p_value = None, None
 
-        # check if the lag is specified for the Bartlett or LBQ test
-        if ac_test in ['bartlett', 'lbq'] and lag is None:
-            raise ValueError("The lag must be specified for the Bartlett or LBQ test.")
-
-        if ac_test == 'runs':
-            stat, p_value = runstest_1samp(self.data, correction=False)
-            print(f'Runs test statistic = {stat:.3f}')
-            print(f'Runs test p-value = {p_value:.3f}\n')
-
-        elif ac_test == 'bartlett':
-            rk = acf_values[lag]
-            stat = rk
-            p_value = 2 * (1 - stats.norm.cdf(abs(stat) * np.sqrt(len(self.data))))
-            print(f'Bartlett test statistic = {stat:.3f}')
-            print(f'Bartlett test p-value = {p_value:.3f}')
+            if nlags is None:
+                nlags = min(len(self.data) // 3, 200)
+            else:
+                # check if the number of lags is less than the length of the data
+                if nlags > len(self.data):
+                    raise ValueError("The number of lags must be less than the length of the data.")
             
-        elif ac_test == 'lbq':
-            stat = stat_lbq[lag - 1]
-            p_value = 1 - stats.chi2.cdf(stat, lag)
-            print(f'LBQ test statistic = {stat:.3f}')
-            print(f'LBQ test p-value = {p_value:.3f}')
+            acf_values, stat_lbq, _ = acf(self.data, nlags = nlags, qstat=True, fft = False)
 
-        if plotit:
-            fig, ax = plt.subplots(2, 1, figsize=(10, max(5, nlags // 15)))
-            sgt.plot_acf(self.data, lags=nlags, zero=False, ax=ax[0])
-            ax[0].set_ylim(-1, 1)
-            fig.subplots_adjust(hspace=0.5 if nlags <= 50 else 0.2)
-            sgt.plot_pacf(self.data, lags=nlags, zero=False, ax=ax[1], method='ywm')
-            ax[1].set_ylim(-1, 1)
-            _show_plot()
+            # check if the lag is specified for the Bartlett or LBQ test
+            if ac_test in ['bartlett', 'lbq'] and lag is None:
+                raise ValueError("The lag must be specified for the Bartlett or LBQ test.")
 
-        return stat, p_value
+            if ac_test == 'runs':
+                stat, p_value = runstest_1samp(self.data, correction=False)
+                print(f'Runs test statistic = {stat:.3f}')
+                print(f'Runs test p-value = {p_value:.3f}\n')
+
+            elif ac_test == 'bartlett':
+                rk = acf_values[lag]
+                stat = rk
+                p_value = 2 * (1 - stats.norm.cdf(abs(stat) * np.sqrt(len(self.data))))
+                print(f'Bartlett test statistic = {stat:.3f}')
+                print(f'Bartlett test p-value = {p_value:.3f}')
+                
+            elif ac_test == 'lbq':
+                stat = stat_lbq[lag - 1]
+                p_value = 1 - stats.chi2.cdf(stat, lag)
+                print(f'LBQ test statistic = {stat:.3f}')
+                print(f'LBQ test p-value = {p_value:.3f}')
+
+            if plotit:
+                fig, ax = plt.subplots(2, 1, figsize=(10, max(5, nlags // 15)))
+                sgt.plot_acf(self.data, lags=nlags, zero=False, ax=ax[0])
+                ax[0].set_ylim(-1, 1)
+                fig.subplots_adjust(hspace=0.5 if nlags <= 50 else 0.2)
+                sgt.plot_pacf(self.data, lags=nlags, zero=False, ax=ax[1], method='ywm')
+                ax[1].set_ylim(-1, 1)
+                _show_plot()
+
+            return stat, p_value
+        
+        else:
+            raise TypeError("Multivariate inputs are not supported")
     
     def all(self, norm_test='shapiro-wilk', ac_test='runs', lag=None, nlags=None, plotit=True):
         

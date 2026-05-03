@@ -26,3 +26,16 @@ qda.Assumptions(data).normality()
 
 # Check the independence of the data
 qda.Assumptions(data).independence()
+
+
+"""
+test one more time for multivariate data
+"""
+
+df = pd.DataFrame(np.random.randn(50, 5), columns=[f'X{i}' for i in range(1, 6)])
+
+# Check the input handlings of normality() and independence(). Should give us a TypeError
+# qda.Assumptions(df).normality()
+
+# This should work
+qda.Assumptions(df).all()
