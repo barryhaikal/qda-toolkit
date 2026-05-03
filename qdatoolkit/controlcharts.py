@@ -7,9 +7,8 @@ import scipy.special as sps
 
 
 def _show_plot():
-    if 'agg' in plt.get_backend().lower():
-        return
-    plt.show()
+    if 'agg' in plt.get_backend().lower(): 
+        plt.show()
 
 
 class ControlCharts:
