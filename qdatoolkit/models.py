@@ -15,8 +15,7 @@ import warnings
 
 def _show_plot():
     if 'agg' in plt.get_backend().lower():
-        return
-    plt.show()
+        plt.show()
 
 
 def summary(results):
