@@ -834,7 +834,7 @@ class Assumptions:
             
         
         
-        assumptions_results = pd.DataFrame(columns=self.data.columns, index=[norm_test+'test P-Value', ac_test+' test P-Value'])
+        assumptions_results = pd.DataFrame(columns=self.data.columns, index=[norm_test+' test P-Value', ac_test+' test P-Value'])
         fig, axes = plt.subplots(3, n_cols, figsize=(12, 5 * n_cols))
         for i, col in enumerate(self.data.columns):
             
