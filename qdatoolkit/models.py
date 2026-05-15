@@ -674,6 +674,10 @@ class Assumptions:
                 # handles input now for multivariate data for Assumptions.all() method
                 data = data
         
+        # series is automatic
+        elif isinstance(data, pd.Series):
+            data = data
+
         # if neither data type is inputted (pd.Series, pd.DataFrame, or np.array, raises TypeError for later class methods)
         else:
             raise TypeError("Data type of input not supported")
